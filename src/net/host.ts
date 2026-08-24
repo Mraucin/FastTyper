@@ -1,5 +1,5 @@
 import { Peer, type DataConnection } from 'peerjs'
-import { pickPassage } from '../data/texts'
+import { MAX_DIFFICULTY_LEVEL, pickPassage } from '../data/texts'
 import {
   applyExclusiveScores,
   eliminationCount,
@@ -41,6 +41,8 @@ export class HostSession {
   private phase: RoomSnapshot['phase'] = 'lobby'
   private roundIndex = 0
   private isPractice = true
+  private difficultyLevel = 1
+  private levelCleared = false
   private singleElimStarted = false
   private text = ''
   private textId = ''
@@ -105,8 +107,11 @@ export class HostSession {
     if (connected.length < 2) return
     this.roundIndex = 0
     this.isPractice = true
+    this.difficultyLevel = 1
+    this.levelCleared = false
     this.singleElimStarted = false
     this.winnerId = null
+    this.usedTextIds = []
     for (const p of this.players.values()) {
       p.public.eliminated = false
       p.public.eliminatedRound = null
@@ -149,6 +154,8 @@ export class HostSession {
       phase: this.phase,
       roundIndex: this.roundIndex,
       isPractice: this.isPractice,
+      difficultyLevel: this.difficultyLevel,
+      levelCleared: this.levelCleared,
       singleElimStarted: this.singleElimStarted,
       text: this.text,
       textId: this.textId,
@@ -385,24 +392,41 @@ export class HostSession {
     this.recomputeRoundScores()
 
     const wasPractice = this.isPractice
+    const textLen = this.text.length
+    const active = this.activePlayers()
+    const allFinished =
+      active.length > 0 &&
+      active.every(
+        (p) =>
+          p.public.roundStats.finishedAt != null ||
+          p.public.roundStats.correctChars >= textLen,
+      )
+
+    this.levelCleared = allFinished
+
     for (const p of this.players.values()) {
       if (!wasPractice) {
         p.public.totalScore += p.public.roundStats.roundScore
       }
     }
 
-    if (!wasPractice) {
+    // Everyone still in finished the text → raise difficulty, skip elimination
+    if (allFinished) {
+      if (this.difficultyLevel < MAX_DIFFICULTY_LEVEL) {
+        this.difficultyLevel += 1
+      }
+    } else if (!wasPractice) {
       this.applyEliminations()
     }
 
-    const active = this.activePlayers()
-    if (active.length <= 1) {
+    const remaining = this.activePlayers()
+    if (remaining.length <= 1) {
       this.isPractice = false
       this.finishMatch()
       return
     }
 
-    const activeCount = active.length
+    const activeCount = remaining.length
     if (!this.singleElimStarted && isSingleEliminationPhase(activeCount)) {
       this.singleElimStarted = true
       for (const p of this.players.values()) {
@@ -413,7 +437,6 @@ export class HostSession {
       }
     }
 
-    // Results for practice still labelled as practice
     this.broadcast()
     if (wasPractice) this.isPractice = false
   }
@@ -431,7 +454,8 @@ export class HostSession {
       }
     }
 
-    const passage = pickPassage(this.usedTextIds)
+    this.levelCleared = false
+    const passage = pickPassage(this.difficultyLevel, this.usedTextIds)
     this.usedTextIds.push(passage.id)
     this.text = passage.text
     this.textId = passage.id

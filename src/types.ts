@@ -79,6 +79,10 @@ export interface RoomSnapshot {
     | 'final'
   roundIndex: number
   isPractice: boolean
+  /** Current difficulty band 1–9 */
+  difficultyLevel: number
+  /** True when everyone still in finished the text — level rises, no elim */
+  levelCleared: boolean
   singleElimStarted: boolean
   text: string
   textId: string

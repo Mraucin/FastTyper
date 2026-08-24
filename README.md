@@ -8,10 +8,14 @@ Wieloosobowa gra w szybkie pisanie (battle royale) na tekstach z polskiej kultur
 2. **Host** otwiera stronę → „Utwórz pokój” → pokazuje 4-znakowy kod.
 3. **Gracze** (max 30) → „Dołącz z kodem” → kod + nickname.
 4. Host ustawia progi eliminacji i startuje mecz.
-5. **Runda 1 jest testowa** (wynik się nie liczy, nikt nie odpada).
-6. Kolejne rundy (~45 s, ok. 20–25 słów) eliminują najsłabszych według progów.
+5. **Runda 1 jest testowa** (wynik się nie liczy, nikt nie odpada). Start od **poziomu 1**.
+6. Gdy wszyscy aktywni dokończą tekst — poziom trudności rośnie i **nikt nie odpada**. W przeciwnym razie eliminacja według progów.
 7. Wyeliminowani mogą dalej pisać, aż zacznie się faza eliminacji pojedynczej (≤4 graczy) — wtedy oglądają finał.
 8. Na końcu tabela miejsc i punktów.
+
+### Teksty
+
+Fragmenty z **Janusza Korczaka — Król Maciuś Pierwszy** ([Wolne Lektury](https://wolnelektury.pl/katalog/lektura/krol-macius-pierwszy.html)): tylko litery, spacje, kropka i przecinek. 9 poziomów trudności (6–10 … 46–50 słów).
 
 ### Punkty
 

@@ -293,6 +293,12 @@ label {
   font-size: 1.15rem;
 }
 
+.badge.level {
+  border-color: rgba(212, 160, 23, 0.55);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .typing-stage {
   position: relative;
   background: rgba(0, 0, 0, 0.35);
@@ -300,11 +306,37 @@ label {
   border-radius: 8px;
   padding: 1.5rem 1.25rem 2.25rem;
   margin-bottom: 1rem;
+  min-height: 11rem;
+}
+
+.countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(18, 14, 10, 0.45);
+  border-radius: 8px;
+}
+
+.countdown-overlay span {
+  font-family: var(--serif);
+  font-size: clamp(3.5rem, 12vw, 6.5rem);
+  line-height: 1;
+  color: var(--accent);
+  animation: pulseSoft 1s ease infinite;
+}
+
+.stage-hint {
+  margin: 0 0 0.75rem;
 }
 
 .passage-wrap {
   position: relative;
   padding-bottom: 1.75rem;
+  min-height: 5.5rem;
 }
 
 .passage {

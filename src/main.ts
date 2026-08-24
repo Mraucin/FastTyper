@@ -1,5 +1,5 @@
 import './style.css'
-import { pickPassage } from './data/texts'
+import { pickPassage, levelWordRange } from './data/texts'
 import { computeStats, applyTypingKey, exclusiveScores } from './game/logic'
 import { ClientSession } from './net/client'
 import { HostSession, createHost } from './net/host'
@@ -262,7 +262,7 @@ function startTrainRound(continueSession = false): void {
   state.snapshot = null
   state.you = null
 
-  const passage = pickPassage(used)
+  const passage = pickPassage(Math.min(9, 1 + Math.floor(used.length / 2)), used)
   used.push(passage.id)
 
   state.mode = 'train'
@@ -477,12 +477,88 @@ function threshForm(t: EliminationThresholds, editable: boolean): string {
 function roundLabel(snap: RoomSnapshot): string {
   if (snap.phase === 'final') return 'Koniec meczu'
   if (snap.isPractice) {
-    return snap.phase === 'round-results'
-      ? 'Koniec rundy testowej'
-      : 'Runda testowa (nie liczy się)'
+    return snap.phase === 'round-results' ? 'Koniec rundy testowej' : 'Runda testowa'
   }
-  if (snap.phase === 'round-results') return `Koniec rundy ${snap.roundIndex}`
+  if (snap.phase === 'round-results') {
+    const clear = snap.levelCleared ? ' · awans poziomu' : ''
+    return `Koniec rundy ${snap.roundIndex}${clear}`
+  }
   return `Runda ${Math.max(1, snap.roundIndex)}`
+}
+
+function difficultyBadgeHtml(level: number): string {
+  const range = levelWordRange(level)
+  return `<span class="badge level">Poziom ${level} · ${range.min}–${range.max} słów</span>`
+}
+
+function liveRaceChrome(snap: RoomSnapshot, countdownLeft?: number): string {
+  const isHost = state.mode === 'host'
+  const you = state.you
+  const spectating = Boolean(you?.spectating || (you && !you.canType))
+  const isCountdown = snap.phase === 'countdown'
+  const stats = currentStats()
+
+  const passageInner =
+    isHost || spectating || isCountdown
+      ? hostPassageHtml(snap)
+      : passageHtml(snap.text, state.caret, true)
+
+  const stage = `<div class="typing-stage ${isHost ? 'host-live' : ''}" data-focus-stage>
+      ${
+        isCountdown
+          ? `<div class="countdown-overlay" aria-live="polite"><span data-countdown>${countdownLeft ?? ''}</span></div>`
+          : ''
+      }
+      ${
+        spectating && !isCountdown
+          ? `<p class="hint stage-hint">Oglądasz finał — możesz śledzić postęp na liście graczy.</p>`
+          : ''
+      }
+      <div class="passage-wrap">${passageInner}${isCountdown ? '' : flagsLayerHtml(snap)}</div>
+    </div>`
+
+  const playerStatsPills =
+    !isHost && !spectating
+      ? `<div class="stat-pill"><span class="label">Znaki</span><span class="value" data-chars>${isCountdown ? 0 : stats.correctChars}</span></div>
+         <div class="stat-pill"><span class="label">Punkty</span><span class="value" data-score>${isCountdown ? 0 : (state.you?.roundStats.roundScore ?? 0)}</span></div>
+         <div class="stat-pill"><span class="label">WPM</span><span class="value" data-wpm>${isCountdown ? 0 : stats.wpm}</span></div>`
+      : isHost
+        ? `<div class="stat-pill"><span class="label">Poziom</span><span class="value">${snap.difficultyLevel}</span></div>`
+        : ''
+
+  return `<div class="screen live-race">
+    <div class="race-header">
+      <div>
+        <div class="status-bar" style="margin:0">
+          <span class="badge">${escapeHtml(roundLabel(snap))}</span>
+          ${difficultyBadgeHtml(snap.difficultyLevel)}
+          ${isHost ? '<span class="badge">PODGLĄD HOSTA</span>' : ''}
+          ${spectating ? '<span class="badge">WIDZ</span>' : ''}
+          ${snap.singleElimStarted ? '<span class="badge out">finał</span>' : ''}
+        </div>
+      </div>
+      <div class="stat-pills">
+        <div class="stat-pill"><span class="label">${isCountdown ? 'Start za' : 'Czas'}</span><span class="value" data-clock>${
+          isCountdown ? String(countdownLeft ?? '—') : formatTimeLeft(snap.roundEndsAt)
+        }</span></div>
+        ${playerStatsPills}
+      </div>
+    </div>
+    ${stage}
+    <div class="panel">
+      <h3>Gracze</h3>
+      ${playerListHtml(snap.players, { showStats: !isCountdown })}
+    </div>
+  </div>`
+}
+
+function renderCountdown(snap: RoomSnapshot): string {
+  const left = Math.max(1, Math.ceil(((snap.countdownEndsAt ?? Date.now()) - Date.now()) / 1000))
+  return liveRaceChrome(snap, left)
+}
+
+function renderRace(snap: RoomSnapshot): string {
+  return liveRaceChrome(snap)
 }
 
 function rankedForRound(snap: RoomSnapshot): PlayerPublic[] {
@@ -543,7 +619,7 @@ function renderHostLobby(snap: RoomSnapshot | null): string {
     </div>
     <div class="panel" style="margin-top:1rem">
       <h3>Progi eliminacji (battle royale)</h3>
-      <p class="hint">Pierwsza runda jest testowa i nie eliminuje. Potem odpada najsłabszych według progów.</p>
+      <p class="hint">Pierwsza runda jest testowa. Teksty z <em>Króla Maciusia Pierwszego</em> — start od poziomu 1 (6–10 słów). Gdy wszyscy aktywni dokończą tekst, poziom rośnie i nikt nie odpada. W przeciwnym razie eliminacja według progów.</p>
       ${threshForm(t, true)}
     </div>
   </div>`
@@ -593,79 +669,23 @@ function renderPlayerLobby(snap: RoomSnapshot | null): string {
   </div>`
 }
 
-function renderCountdown(snap: RoomSnapshot): string {
-  const left = Math.max(1, Math.ceil(((snap.countdownEndsAt ?? Date.now()) - Date.now()) / 1000))
-  return `<div class="screen">
-    <div class="status-bar">
-      <span class="badge">${escapeHtml(roundLabel(snap))}</span>
-      ${snap.singleElimStarted ? '<span class="badge out">finał — widzowie</span>' : ''}
-    </div>
-    <p class="countdown-big" data-countdown>${left}</p>
-    <div class="panel">
-      <p class="hint" style="margin:0 0 0.75rem">Przygotuj się. Tekst (~${ROUND_SECONDS} s, ok. 20–25 słów):</p>
-      <div class="passage"><span class="todo">${escapeHtml(snap.text)}</span></div>
-    </div>
-  </div>`
-}
-
-function renderRace(snap: RoomSnapshot): string {
-  const isHost = state.mode === 'host'
-  const you = state.you
-  const spectating = Boolean(you?.spectating || (you && !you.canType))
-  const stats = currentStats()
-
-  const stage = isHost
-    ? `<div class="typing-stage host-live">
-        <div class="passage-wrap">${hostPassageHtml(snap)}${flagsLayerHtml(snap)}</div>
-      </div>`
-    : `<div class="typing-stage" data-focus-stage>
-        ${
-          spectating
-            ? `<p class="hint">Oglądasz finał — możesz śledzić postęp na liście graczy.</p>
-               <div class="passage-wrap">${hostPassageHtml(snap)}${flagsLayerHtml(snap)}</div>`
-            : `<div class="passage-wrap">${passageHtml(snap.text, state.caret, true)}${flagsLayerHtml(snap)}</div>`
-        }
-      </div>`
-
-  return `<div class="screen">
-    <div class="race-header">
-      <div>
-        <div class="status-bar" style="margin:0">
-          <span class="badge">${escapeHtml(roundLabel(snap))}</span>
-          ${isHost ? '<span class="badge">PODGLĄD HOSTA</span>' : ''}
-          ${spectating ? '<span class="badge">WIDZ</span>' : ''}
-        </div>
-      </div>
-      <div class="stat-pills">
-        <div class="stat-pill"><span class="label">Czas</span><span class="value" data-clock>${formatTimeLeft(snap.roundEndsAt)}</span></div>
-        ${
-          !isHost && !spectating
-            ? `<div class="stat-pill"><span class="label">Znaki</span><span class="value" data-chars>${stats.correctChars}</span></div>
-               <div class="stat-pill"><span class="label">Punkty</span><span class="value" data-score>${state.you?.roundStats.roundScore ?? 0}</span></div>
-               <div class="stat-pill"><span class="label">WPM</span><span class="value" data-wpm>${stats.wpm}</span></div>`
-            : ''
-        }
-      </div>
-    </div>
-    ${stage}
-    <div class="panel">
-      <h3>Gracze</h3>
-      ${playerListHtml(snap.players, { showStats: true })}
-    </div>
-  </div>`
-}
-
 function renderTrainCountdown(train: TrainState): string {
   const left = Math.max(1, Math.ceil(((train.countdownEndsAt ?? Date.now()) - Date.now()) / 1000))
-  return `<div class="screen">
-    <div class="status-bar">
-      <span class="badge">TRENING</span>
-      <span class="badge">${escapeHtml(train.title)}</span>
+  const level = Math.min(9, 1 + Math.floor(train.usedIds.length / 2))
+  return `<div class="screen live-race">
+    <div class="race-header">
+      <div class="status-bar" style="margin:0">
+        <span class="badge">TRENING</span>
+        ${difficultyBadgeHtml(level)}
+        <span class="badge">${escapeHtml(train.title)}</span>
+      </div>
+      <div class="stat-pills">
+        <div class="stat-pill"><span class="label">Start za</span><span class="value" data-countdown>${left}</span></div>
+      </div>
     </div>
-    <p class="countdown-big" data-countdown>${left}</p>
-    <div class="panel">
-      <p class="hint" style="margin:0 0 0.75rem">${escapeHtml(train.source)} · ~${ROUND_SECONDS} s, ok. 20–25 słów</p>
-      <div class="passage"><span class="todo">${escapeHtml(train.text)}</span></div>
+    <div class="typing-stage" data-focus-stage>
+      <div class="countdown-overlay" aria-live="polite"><span data-countdown>${left}</span></div>
+      <div class="passage-wrap"><div class="passage"><span class="todo">${escapeHtml(train.text)}</span></div></div>
     </div>
     <div class="actions" style="margin-top:1rem">
       <button type="button" class="secondary" data-action="home">Anuluj</button>
@@ -676,10 +696,12 @@ function renderTrainCountdown(train: TrainState): string {
 function renderTrainRace(train: TrainState): string {
   const stats = currentStats()
   const score = exclusiveScores([state.caret])[0] ?? 0
-  return `<div class="screen">
+  const level = Math.min(9, 1 + Math.floor(Math.max(0, train.usedIds.length - 1) / 2))
+  return `<div class="screen live-race">
     <div class="race-header">
       <div class="status-bar" style="margin:0">
         <span class="badge">TRENING</span>
+        ${difficultyBadgeHtml(level)}
         <span class="badge">${escapeHtml(train.title)}</span>
       </div>
       <div class="stat-pills">
@@ -729,6 +751,7 @@ function renderRoundResults(snap: RoomSnapshot): string {
   return `<div class="screen">
     <div class="status-bar">
       <h2 style="font-family:var(--serif);font-weight:400;margin:0;font-size:2rem">${escapeHtml(roundLabel(snap))}</h2>
+      ${difficultyBadgeHtml(snap.difficultyLevel)}
     </div>
     <div class="table-wrap">
       <table class="standings">
@@ -770,6 +793,11 @@ function renderRoundResults(snap: RoomSnapshot): string {
           : `<p class="hint">Czekaj na hosta…</p>`
       }
     </div>
+    ${
+      snap.levelCleared
+        ? `<p class="hint" style="margin-top:1rem">Wszyscy w grze dokończyli tekst — poziom trudności wzrasta, bez eliminacji.</p>`
+        : ''
+    }
   </div>`
 }
 
@@ -861,21 +889,35 @@ function updateClockDom(): void {
   const clock = app.querySelector('[data-clock]')
   if (clock) {
     if (state.mode === 'train' && state.train) {
-      clock.textContent = formatTimeLeft(state.train.roundEndsAt)
+      if (state.train.phase === 'countdown') {
+        const left = Math.max(
+          1,
+          Math.ceil(((state.train.countdownEndsAt ?? Date.now()) - Date.now()) / 1000),
+        )
+        clock.textContent = String(left)
+      } else {
+        clock.textContent = formatTimeLeft(state.train.roundEndsAt)
+      }
+    } else if (state.snapshot?.phase === 'countdown') {
+      const left = Math.max(
+        1,
+        Math.ceil(((state.snapshot.countdownEndsAt ?? Date.now()) - Date.now()) / 1000),
+      )
+      clock.textContent = String(left)
     } else if (state.snapshot) {
       clock.textContent = formatTimeLeft(state.snapshot.roundEndsAt)
     }
   }
-  const cd = app.querySelector('[data-countdown]')
-  if (cd) {
-    const endsAt =
-      state.mode === 'train'
-        ? state.train?.countdownEndsAt
-        : state.snapshot?.countdownEndsAt
-    if (endsAt) {
-      const left = Math.max(1, Math.ceil((endsAt - Date.now()) / 1000))
-      cd.textContent = String(left)
-    }
+  const cds = app.querySelectorAll('[data-countdown]')
+  const endsAt =
+    state.mode === 'train'
+      ? state.train?.countdownEndsAt
+      : state.snapshot?.countdownEndsAt
+  if (endsAt && cds.length) {
+    const left = Math.max(1, Math.ceil((endsAt - Date.now()) / 1000))
+    cds.forEach((el) => {
+      el.textContent = String(left)
+    })
   }
 }
 
