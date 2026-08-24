@@ -30,11 +30,10 @@ export type HostToClient =
 export function emptyStats(): PlayerStats {
   return {
     wpm: 0,
-    accuracy: 100,
     correctChars: 0,
-    wrongChars: 0,
     progress: 0,
     finishedAt: null,
+    roundScore: 0,
   }
 }
 
@@ -55,7 +54,7 @@ export function defaultSettings(
   thresholds?: Partial<EliminationThresholds>,
 ): GameSettings {
   return {
-    roundSeconds: 60,
+    roundSeconds: 45,
     thresholds: {
       above15: thresholds?.above15 ?? 4,
       above8: thresholds?.above8 ?? 3,

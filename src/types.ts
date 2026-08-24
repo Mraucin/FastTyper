@@ -9,6 +9,9 @@ export type Screen =
   | 'race'
   | 'round-results'
   | 'final'
+  | 'train-countdown'
+  | 'train-race'
+  | 'train-results'
   | 'error'
 
 export interface EliminationThresholds {
@@ -31,11 +34,11 @@ export const DEFAULT_THRESHOLDS: EliminationThresholds = {
 
 export interface PlayerStats {
   wpm: number
-  accuracy: number
   correctChars: number
-  wrongChars: number
   progress: number
   finishedAt: number | null
+  /** Exclusive score for the current round */
+  roundScore: number
 }
 
 export interface PlayerPublic {
@@ -87,6 +90,6 @@ export interface RoomSnapshot {
 }
 
 export const MAX_PLAYERS = 30
-export const ROUND_SECONDS = 60
+export const ROUND_SECONDS = 45
 export const COUNTDOWN_SECONDS = 3
 export const PEER_PREFIX = 'ftyper-'

@@ -1,10 +1,10 @@
 import { Peer, type DataConnection } from 'peerjs'
 import { pickPassage } from '../data/texts'
 import {
+  applyExclusiveScores,
   eliminationCount,
   isSingleEliminationPhase,
   rankPlayers,
-  scoreFromStats,
 } from '../game/logic'
 import type {
   EliminationThresholds,
@@ -351,7 +351,12 @@ export class HostSession {
     const p = this.players.get(playerId)
     if (!p || !p.public.canType || p.public.spectating) return
     p.public.roundStats = { ...stats }
+    this.recomputeRoundScores()
     this.broadcast()
+  }
+
+  private recomputeRoundScores(): void {
+    applyExclusiveScores([...this.players.values()].map((p) => p.public))
   }
 
   private saveCheckpoint(p: HostPlayer): void {
@@ -377,10 +382,12 @@ export class HostSession {
     this.phase = 'round-results'
     this.roundEndsAt = null
 
+    this.recomputeRoundScores()
+
     const wasPractice = this.isPractice
     for (const p of this.players.values()) {
       if (!wasPractice) {
-        p.public.totalScore += scoreFromStats(p.public.roundStats)
+        p.public.totalScore += p.public.roundStats.roundScore
       }
     }
 
@@ -481,14 +488,7 @@ export class HostSession {
 
   private finishMatch(): void {
     this.phase = 'final'
-    const all = rankPlayers(
-      [...this.players.values()].map((p) => {
-        // Final ranking by total score, non-eliminated first, later elimination better
-        return p.public
-      }),
-    )
 
-    // Custom final sort
     const sorted = [...this.players.values()]
       .map((p) => p.public)
       .sort((a, b) => {
@@ -499,7 +499,7 @@ export class HostSession {
           if (rb !== ra) return rb - ra
         }
         if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore
-        return scoreFromStats(b.roundStats) - scoreFromStats(a.roundStats)
+        return b.roundStats.roundScore - a.roundStats.roundScore
       })
 
     sorted.forEach((p, i) => {
@@ -507,7 +507,6 @@ export class HostSession {
     })
 
     this.winnerId = sorted[0]?.id ?? null
-    void all
     this.broadcast()
   }
 }

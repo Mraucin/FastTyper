@@ -4,13 +4,20 @@ Wieloosobowa gra w szybkie pisanie (battle royale) na tekstach z polskiej kultur
 
 ## Jak grać
 
-1. **Host** otwiera stronę → „Utwórz pokój” → pokazuje 4-znakowy kod.
-2. **Gracze** (max 30) → „Dołącz z kodem” → kod + nickname.
-3. Host ustawia progi eliminacji i startuje mecz.
-4. **Runda 1 jest testowa** (wynik się nie liczy, nikt nie odpada).
-5. Kolejne rundy (~60 s, ok. 40 słów) eliminują najsłabszych według progów.
-6. Wyeliminowani mogą dalej pisać, aż zacznie się faza eliminacji pojedynczej (≤4 graczy) — wtedy oglądają finał.
-7. Na końcu tabela miejsc i statystyk.
+1. **Trening** — solo, bez pokoju (offline).
+2. **Host** otwiera stronę → „Utwórz pokój” → pokazuje 4-znakowy kod.
+3. **Gracze** (max 30) → „Dołącz z kodem” → kod + nickname.
+4. Host ustawia progi eliminacji i startuje mecz.
+5. **Runda 1 jest testowa** (wynik się nie liczy, nikt nie odpada).
+6. Kolejne rundy (~45 s, ok. 20–25 słów) eliminują najsłabszych według progów.
+7. Wyeliminowani mogą dalej pisać, aż zacznie się faza eliminacji pojedynczej (≤4 graczy) — wtedy oglądają finał.
+8. Na końcu tabela miejsc i punktów.
+
+### Punkty
+
+- **100** za każdy poprawny znak (zły klawisz nie przesuwa kursora — trzeba pisać dokładnie).
+- **+5** za ten znak za każdego przeciwnika, który go jeszcze nie napisał.
+- Ranking i eliminacje według sumy punktów rundy.
 
 ### Domyślne progi eliminacji
 
