@@ -33,6 +33,8 @@ export function computeStats(
  * - 100 pts per correct character
  * - +5 pts per character for each opponent who has not reached that character yet
  */
+export const TIME_BONUS_PER_SECOND = 40
+
 export function exclusiveScores(charCounts: number[]): number[] {
   const n = charCounts.length
   return charCounts.map((chars, idx) => {
@@ -49,11 +51,23 @@ export function exclusiveScores(charCounts: number[]): number[] {
   })
 }
 
-export function applyExclusiveScores(players: PlayerPublic[]): void {
+/** 40 pts for each full second left on the clock when the text is finished. */
+export function timeBonus(finishedAtMs: number | null, roundSeconds: number): number {
+  if (finishedAtMs == null) return 0
+  const remainingMs = Math.max(0, roundSeconds * 1000 - finishedAtMs)
+  const remainingSec = Math.floor(remainingMs / 1000)
+  return remainingSec * TIME_BONUS_PER_SECOND
+}
+
+export function applyExclusiveScores(
+  players: PlayerPublic[],
+  roundSeconds: number,
+): void {
   const list = [...players]
   const scores = exclusiveScores(list.map((p) => p.roundStats.correctChars))
   list.forEach((p, i) => {
-    p.roundStats = { ...p.roundStats, roundScore: scores[i] ?? 0 }
+    const bonus = timeBonus(p.roundStats.finishedAt, roundSeconds)
+    p.roundStats = { ...p.roundStats, roundScore: (scores[i] ?? 0) + bonus }
   })
 }
 

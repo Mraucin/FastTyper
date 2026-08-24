@@ -1,6 +1,6 @@
 import './style.css'
 import { pickPassage, levelWordRange } from './data/texts'
-import { computeStats, applyTypingKey, exclusiveScores } from './game/logic'
+import { computeStats, applyTypingKey, exclusiveScores, timeBonus } from './game/logic'
 import { ClientSession } from './net/client'
 import { HostSession, createHost } from './net/host'
 import { getCachedNickname, getOrCreatePlayerId, setCachedNickname } from './storage'
@@ -188,7 +188,12 @@ function currentStats() {
     state.mode === 'train' ? (state.train?.text ?? '') : (state.snapshot?.text ?? '')
   const started = state.raceStartedAt ?? Date.now()
   const elapsed = Date.now() - started
-  const soloScore = exclusiveScores([state.caret])[0] ?? 0
+  const roundSec =
+    state.mode === 'train'
+      ? ROUND_SECONDS
+      : (state.snapshot?.settings.roundSeconds ?? ROUND_SECONDS)
+  const soloScore =
+    (exclusiveScores([state.caret])[0] ?? 0) + timeBonus(state.finishedAt, roundSec)
   const liveScore =
     state.mode === 'train' ? soloScore : (state.you?.roundStats.roundScore ?? soloScore)
   return computeStats(text, state.caret, elapsed, state.finishedAt, liveScore)
@@ -305,7 +310,8 @@ function endTrainRace(): void {
   clearTrainTimers()
   stopProgressLoop()
   const stats = currentStats()
-  const score = exclusiveScores([state.caret])[0] ?? 0
+  const score =
+    (exclusiveScores([state.caret])[0] ?? 0) + timeBonus(state.finishedAt, ROUND_SECONDS)
   state.train.phase = 'results'
   state.train.roundEndsAt = null
   state.train.resultChars = state.caret
@@ -695,7 +701,6 @@ function renderTrainCountdown(train: TrainState): string {
 
 function renderTrainRace(train: TrainState): string {
   const stats = currentStats()
-  const score = exclusiveScores([state.caret])[0] ?? 0
   const level = Math.min(9, 1 + Math.floor(Math.max(0, train.usedIds.length - 1) / 2))
   return `<div class="screen live-race">
     <div class="race-header">
@@ -707,14 +712,14 @@ function renderTrainRace(train: TrainState): string {
       <div class="stat-pills">
         <div class="stat-pill"><span class="label">Czas</span><span class="value" data-clock>${formatTimeLeft(train.roundEndsAt)}</span></div>
         <div class="stat-pill"><span class="label">Znaki</span><span class="value" data-chars>${stats.correctChars}</span></div>
-        <div class="stat-pill"><span class="label">Punkty</span><span class="value" data-score>${score}</span></div>
+        <div class="stat-pill"><span class="label">Punkty</span><span class="value" data-score>${stats.roundScore}</span></div>
         <div class="stat-pill"><span class="label">WPM</span><span class="value" data-wpm>${stats.wpm}</span></div>
       </div>
     </div>
     <div class="typing-stage" data-focus-stage>
       <div class="passage-wrap">${passageHtml(train.text, state.caret, true)}</div>
     </div>
-    <p class="hint">Solo: 100 pkt za znak. Zły klawisz nie przesuwa kursora.</p>
+    <p class="hint">Solo: 100 pkt/znak + 40 pkt za każdą zachowaną sekundę po ukończeniu.</p>
     <div class="actions" style="margin-top:1rem">
       <button type="button" class="secondary" data-action="home">Zakończ trening</button>
     </div>
@@ -930,8 +935,8 @@ function updateLocalStatsDom(): void {
   if (chars) chars.textContent = String(stats.correctChars)
   const scoreVal =
     state.mode === 'train'
-      ? (exclusiveScores([state.caret])[0] ?? 0)
-      : (state.you?.roundStats.roundScore ?? 0)
+      ? stats.roundScore
+      : (state.you?.roundStats.roundScore ?? stats.roundScore)
   if (score) score.textContent = String(scoreVal)
 }
 

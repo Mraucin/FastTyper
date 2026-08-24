@@ -21,6 +21,7 @@ Fragmenty z **Janusza Korczaka — Król Maciuś Pierwszy** ([Wolne Lektury](htt
 
 - **100** za każdy poprawny znak (zły klawisz nie przesuwa kursora — trzeba pisać dokładnie).
 - **+5** za ten znak za każdego przeciwnika, który go jeszcze nie napisał.
+- **+40** za każdą pełną sekundę pozostałą na zegarze po ukończeniu tekstu.
 - Ranking i eliminacje według sumy punktów rundy.
 
 ### Domyślne progi eliminacji

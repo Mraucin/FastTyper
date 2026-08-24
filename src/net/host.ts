@@ -363,7 +363,10 @@ export class HostSession {
   }
 
   private recomputeRoundScores(): void {
-    applyExclusiveScores([...this.players.values()].map((p) => p.public))
+    applyExclusiveScores(
+      [...this.players.values()].map((p) => p.public),
+      this.settings.roundSeconds,
+    )
   }
 
   private saveCheckpoint(p: HostPlayer): void {
